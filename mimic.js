@@ -20,7 +20,9 @@ detector.detectAllAppearance();
 // --- Utility values and functions ---
 
 // Unicode values for all emojis Affectiva can detect
-var emojis = [ 128528, 9786, 128515, 128524, 128527, 128521, 128535, 128539, 128540, 128542, 128545, 128563, 128561 ];
+//var emojis = [ 128528, 9786, 128515, 128524, 128527, 128521, 128535, 128539, 128540, 128542, 128545, 128563, 128561 ];
+var emojis = [128528, 128539, 128515, 9786];
+
 
 // Update target emoji being displayed by supplying a unicode value
 function setTargetEmoji(code) {
@@ -75,6 +77,13 @@ function onReset() {
 
   // TODO(optional): You can restart the game as well
   // <your code here>
+  cur_score = 0;
+  emoji_to_mimic = emojis[Math.floor(Math.random() * emojis.length)];
+  //log('#logs', "emoji="+emoji_to_mimic);
+  setTargetEmoji(emoji_to_mimic);
+  success_audio.play();
+  setScore(cur_score, total_score);
+
 };
 
 // Add a callback to notify when camera access is allowed
@@ -103,6 +112,14 @@ detector.addEventListener("onInitializeSuccess", function() {
 
   // TODO(optional): Call a function to initialize the game, if needed
   // <your code here>
+  cur_score = 0;
+  emoji_to_mimic = emojis[Math.floor(Math.random() * emojis.length)];
+  setTargetEmoji(emoji_to_mimic);
+  success_audio.play();
+  setScore(cur_score, total_score);
+  //log('#logs', "emoji="+emoji_to_mimic);
+
+
 });
 
 // Add a callback to receive the results from processing an image
@@ -134,6 +151,23 @@ detector.addEventListener("onImageResultsSuccess", function(faces, image, timest
 
     // TODO: Call your function to run the game (define it first!)
     // <your code here>
+	// check if dominant emoji is the correct one
+	if (cur_score < total_score) {
+	  if (toUnicode(faces[0].emojis.dominantEmoji) === emoji_to_mimic) {
+		  cur_score += 1;
+		  setScore(cur_score, total_score);
+		  success_audio.play();
+          emoji_to_mimic = emojis[Math.floor(Math.random() * emojis.length)];
+		  setTargetEmoji(emoji_to_mimic);
+		  //log('#logs', "emoji="+emoji_to_mimic);
+
+		  if (cur_score === total_score) {
+	        game_over_audio.play();
+			$("#score").html("Score: " + cur_score + " / " + total_score + "- Game Over. You took " + timestamp.toFixed(2) +" secs. Press RESET to play again");
+		    log('#logs', "PRESS RESET to play the game again");
+		  }
+	  }
+	}
   }
 });
 
@@ -148,14 +182,21 @@ function drawFeaturePoints(canvas, img, face) {
   // TODO: Set the stroke and/or fill style you want for each feature point marker
   // See: https://developer.mozilla.org/en-US/docs/Web/API/CanvasRenderingContext2D#Fill_and_stroke_styles
   // <your code here>
+  ctx.strokeStyle = 'yellow';
+  //console.log(face);
   
   // Loop over each feature point in the face
   for (var id in face.featurePoints) {
-    var featurePoint = face.featurePoints[id];
+
 
     // TODO: Draw feature point, e.g. as a circle using ctx.arc()
     // See: https://developer.mozilla.org/en-US/docs/Web/API/CanvasRenderingContext2D/arc
     // <your code here>
+	var featurePoint = face.featurePoints[id];
+	ctx.beginPath();
+    ctx.arc(featurePoint.x, featurePoint.y, 3, 0, 2*Math.PI);
+    ctx.stroke();
+
   }
 }
 
@@ -166,14 +207,48 @@ function drawEmoji(canvas, img, face) {
 
   // TODO: Set the font and style you want for the emoji
   // <your code here>
+  // Default size of Emoji. Will adjust the size based on size of face detected
+  var face_size = 48;
   
   // TODO: Draw it using ctx.strokeText() or fillText()
   // See: https://developer.mozilla.org/en-US/docs/Web/API/CanvasRenderingContext2D/fillText
   // TIP: Pick a particular feature point as an anchor so that the emoji sticks to your face
   // <your code here>
+  
+  var x_min = Number.POSITIVE_INFINITY;
+  var x_max = Number.NEGATIVE_INFINITY;
+  var y = Number.POSITIVE_INFINITY; 
+
+  for (var id in face.featurePoints) {
+    var featurePoint = face.featurePoints[id];
+
+    if (featurePoint.y < y) {
+      y = featurePoint.y;
+    }
+	
+	if (featurePoint.x > x_max) {
+		x_max = featurePoint.x;
+    }
+	
+	if (featurePoint.x < x_min) {
+		x_min = featurePoint.x;
+    }
+	
+  }
+
+  var x = x_max;
+  
+  ctx.font = 48*(x_max-x_min)/250 + "px serif";
+
+  
+  //ctx.font = "48px serif";
+
+  ctx.fillText(face.emojis.dominantEmoji, x, y);
 }
 
 // TODO: Define any variables and functions to implement the Mimic Me! game mechanics
+
+
 
 // NOTE:
 // - Remember to call your update function from the "onImageResultsSuccess" event handler above
@@ -187,3 +262,10 @@ function drawEmoji(canvas, img, face) {
 // - Define a game reset function (same as init?), and call it from the onReset() function above
 
 // <your code here>
+
+var cur_score = 0;
+var total_score = 5;
+var success_audio = new Audio('beep-08b.mp3');
+var game_over_audio = new Audio("applause-01.mp3");
+var emoji_to_mimic = null;
+
